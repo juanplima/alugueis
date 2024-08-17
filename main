@@ -1,0 +1,55 @@
+import pandas as pd
+
+# Carregar dados
+dados = pd.read_csv('aluguel.csv', sep=';')
+
+# Definindo os tipos de imóveis comerciais a serem removidos
+imoveis_comerciais = [
+    'Conjunto Comercial/Sala', 'Prédio Inteiro', 'Loja/Salão',
+    'Galpão/Depósito/Armazém', 'Casa Comercial', 'Terreno Padrão',
+    'Loja Shopping/ Ct Comercial', 'Box/Garagem', 'Chácara',
+    'Loteamento/Condomínio', 'Sítio', 'Pousada/Chalé', 'Hotel', 'Indústria'
+]
+
+# Filtrando os dados para remover imóveis comerciais
+df = dados[~dados['Tipo'].isin(imoveis_comerciais)]
+
+# Preencher valores nulos com 0
+df = df.fillna(0)
+
+# Remover registros onde o valor ou condomínio são 0
+Remover_Registros = df.query('Valor == 0 | Condominio == 0').index
+df.drop(Remover_Registros, axis=0, inplace=True)
+
+# Aplicando o primeiro filtro: Apartamentos com 1 quarto e valor <= 1200
+Selecao1 = df['Quartos'] == 1
+Selecao2 = df['Valor'] <= 1200
+selecao_final1 = Selecao1 & Selecao2
+df_filtrado1 = df[selecao_final1]
+
+# Aplicando o segundo filtro: Apartamentos com 2 ou mais quartos, valor < 3000, e área > 70 m²
+Selecao3 = (df['Quartos'] >= 2) & (df['Valor'] < 3000) & (df['Area'] > 70)
+df_filtrado2 = df[Selecao3]
+
+# Concatenando os dois DataFrames filtrados
+df_filtrado = pd.concat([df_filtrado1, df_filtrado2])
+
+# Criando as colunas de valor por mês e valor por ano
+df_filtrado['Valor_por_mes'] = df_filtrado['Valor'] + df_filtrado['Condominio']
+df_filtrado['Valor_por_ano'] = df_filtrado['Valor_por_mes'] * 12 + df_filtrado['IPTU']
+
+# Criando a coluna de descrição
+df_filtrado['Descricao'] = (
+    df_filtrado['Tipo'] + ' em ' + df_filtrado['Bairro'] +
+    ' com ' + df_filtrado['Quartos'].astype(str) + ' quarto(s)\\' +
+    ' e ' + df_filtrado['Vagas'].astype(str) + ' vaga(s) de garagem'
+)
+df_filtrado['Possui_suite'] = df_filtrado['Suites'].apply(lambda x: "Sim"if x > 0 else"Não")
+print(df_filtrado)
+
+# Salvando o DataFrame filtrado no arquivo CSV
+df_filtrado.to_csv('dados_apartamentos.csv', sep=';', index=False)
+
+# Carregando o CSV salvo para verificar o conteúdo
+leitura = pd.read_csv('dados_apartamentos.csv', sep=';')
+print(leitura)
